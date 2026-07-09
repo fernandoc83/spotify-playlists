@@ -3,6 +3,12 @@ services:
     build: .
     container_name: spotify-playlists
     restart: unless-stopped
+    # DNS explícito: evita "Temporary failure in name resolution" cuando el
+    # homeserver usa un DNS propio (Pi-hole, systemd-resolved) que el contenedor
+    # no alcanza. Si tenés un DNS local, poné su IP antes de los públicos.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       # --- cada cuánto regenerar las playlists ---
       FRECUENCIA: "semanal"   # diario | semanal | mensual
