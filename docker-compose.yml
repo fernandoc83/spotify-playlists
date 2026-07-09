@@ -1,0 +1,19 @@
+services:
+  spotify-playlists:
+    build: .
+    container_name: spotify-playlists
+    restart: unless-stopped
+    environment:
+      # --- cuándo regenerar las playlists ---
+      DIA_SEMANA: "0"      # 0=lunes … 6=domingo
+      HORA: "9"            # 0-23
+      MINUTO: "0"          # 0-59
+      RUN_ON_START: "0"    # "1" = corre una vez al levantar el contenedor
+      # zona horaria (para que HORA sea tu hora local)
+      TZ: "America/Argentina/Buenos_Aires"
+    env_file:
+      - .env               # SPOTIPY_CLIENT_ID / SECRET / REDIRECT_URI
+    volumes:
+      # el token OAuth: persiste y se refresca solo entre corridas.
+      # OJO: es un archivo, no un directorio. Debe existir antes de levantar.
+      - ./.cache:/app/.cache
