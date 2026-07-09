@@ -9,18 +9,11 @@ services:
     dns:
       - 1.1.1.1
       - 8.8.8.8
-    environment:
-      # --- cada cuánto regenerar las playlists ---
-      FRECUENCIA: "semanal"   # diario | semanal | mensual
-      HORA: "9"               # 0-23
-      MINUTO: "0"             # 0-59
-      DIA_SEMANA: "0"         # solo si FRECUENCIA=semanal (0=lunes … 6=domingo)
-      DIA_MES: "1"            # solo si FRECUENCIA=mensual (1-31; se ajusta si el mes es más corto)
-      RUN_ON_START: "0"       # "1" = corre una vez al levantar el contenedor
-      # zona horaria (para que HORA sea tu hora local)
-      TZ: "America/Argentina/Buenos_Aires"
+    # Toda la config (credenciales + horario) vive en .env, que NO está en el
+    # repo. Así podés cambiar FRECUENCIA/HORA/etc. sin tocar este archivo ni
+    # generar conflictos al hacer git pull. Ver .env.example para las variables.
     env_file:
-      - .env               # SPOTIPY_CLIENT_ID / SECRET / REDIRECT_URI
+      - .env
     volumes:
       # el token OAuth: persiste y se refresca solo entre corridas.
       # OJO: es un archivo, no un directorio. Debe existir antes de levantar.

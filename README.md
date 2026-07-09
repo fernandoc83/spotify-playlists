@@ -52,7 +52,8 @@ docker compose logs -f            # ver actividad / próxima corrida
 docker compose down               # detener
 ```
 
-Ajustes en `docker-compose.yml` (env vars):
+**La config va en tu `.env`** (no en `docker-compose.yml`), así podés cambiarla
+sin conflictos al hacer `git pull`. Variables (todas opcionales, ver `.env.example`):
 
 | Var | Qué controla | Default |
 |---|---|---|
@@ -63,9 +64,11 @@ Ajustes en `docker-compose.yml` (env vars):
 | `RUN_ON_START` | `1` = corre al levantar (útil para probar) | `0` |
 | `TZ` | zona horaria | `America/Argentina/Buenos_Aires` |
 
-Ejemplos: `FRECUENCIA=diario HORA=8` (todos los días 08:00) ·
-`FRECUENCIA=mensual DIA_MES=1` (el día 1 de cada mes) ·
-`FRECUENCIA=semanal DIA_SEMANA=5` (todos los sábados).
+Ejemplos en `.env`: `FRECUENCIA=diario` + `HORA=8` (todos los días 08:00) ·
+`FRECUENCIA=mensual` + `DIA_MES=1` (el día 1 de cada mes) ·
+`FRECUENCIA=semanal` + `DIA_SEMANA=5` (todos los sábados).
+
+Tras editar el `.env`: `docker compose up -d` (recrea el contenedor con los valores nuevos).
 
 > Si el refresh token de Spotify se venciera (raro, solo si lo revocás), hay que
 > re-autenticar una vez en local (`python playlists.py`) y volver a copiar `.cache`.
