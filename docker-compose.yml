@@ -4,11 +4,13 @@ services:
     container_name: spotify-playlists
     restart: unless-stopped
     environment:
-      # --- cuándo regenerar las playlists ---
-      DIA_SEMANA: "0"      # 0=lunes … 6=domingo
-      HORA: "9"            # 0-23
-      MINUTO: "0"          # 0-59
-      RUN_ON_START: "0"    # "1" = corre una vez al levantar el contenedor
+      # --- cada cuánto regenerar las playlists ---
+      FRECUENCIA: "semanal"   # diario | semanal | mensual
+      HORA: "9"               # 0-23
+      MINUTO: "0"             # 0-59
+      DIA_SEMANA: "0"         # solo si FRECUENCIA=semanal (0=lunes … 6=domingo)
+      DIA_MES: "1"            # solo si FRECUENCIA=mensual (1-31; se ajusta si el mes es más corto)
+      RUN_ON_START: "0"       # "1" = corre una vez al levantar el contenedor
       # zona horaria (para que HORA sea tu hora local)
       TZ: "America/Argentina/Buenos_Aires"
     env_file:

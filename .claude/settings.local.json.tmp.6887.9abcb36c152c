@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip3 --version)",
+      "Bash(python3 -c \"import venv; print\\('venv OK'\\)\")",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/python -m pip install --quiet --upgrade pip)",
+      "Bash(.venv/bin/python -m pip install --quiet spotipy pandas python-dotenv tabulate)",
+      "Bash(.venv/bin/python -m pip list)",
+      "Bash(.venv/bin/python -c \"import ast; ast.parse\\(open\\('/home/fernando/Documentos/GitHub/spotify/analyzer.py'\\).read\\(\\)\\); print\\('sintaxis OK'\\)\")",
+      "Bash(.venv/bin/python /home/fernando/Documentos/GitHub/spotify/analyzer.py --help)",
+      "Bash(.venv/bin/python *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(echo \"rc=$?\")",
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(grep -E \"\\\\.env$|\\\\.cache\")",
+      "Bash(git commit -q -m 'Spotify analyzer + generador de playlists con variedad y automatización Docker *)",
+      "Bash(echo \"commit rc=$?\")",
+      "Read(//home/fernando/.ssh/**)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com)",
+      "Bash(git config *)",
+      "Bash(gh repo *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(git commit -q -m 'Frecuencia configurable: diario | semanal | mensual *)"
+    ]
+  }
+}

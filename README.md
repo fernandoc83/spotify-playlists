@@ -56,10 +56,16 @@ Ajustes en `docker-compose.yml` (env vars):
 
 | Var | Qué controla | Default |
 |---|---|---|
-| `DIA_SEMANA` | 0=lunes … 6=domingo | `0` (lunes) |
+| `FRECUENCIA` | `diario` \| `semanal` \| `mensual` | `semanal` |
 | `HORA` / `MINUTO` | hora local de la corrida | `9:00` |
+| `DIA_SEMANA` | solo si `semanal`: 0=lunes … 6=domingo | `0` (lunes) |
+| `DIA_MES` | solo si `mensual`: 1-31 (se ajusta si el mes es más corto) | `1` |
 | `RUN_ON_START` | `1` = corre al levantar (útil para probar) | `0` |
 | `TZ` | zona horaria | `America/Argentina/Buenos_Aires` |
+
+Ejemplos: `FRECUENCIA=diario HORA=8` (todos los días 08:00) ·
+`FRECUENCIA=mensual DIA_MES=1` (el día 1 de cada mes) ·
+`FRECUENCIA=semanal DIA_SEMANA=5` (todos los sábados).
 
 > Si el refresh token de Spotify se venciera (raro, solo si lo revocás), hay que
 > re-autenticar una vez en local (`python playlists.py`) y volver a copiar `.cache`.
