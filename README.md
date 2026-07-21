@@ -42,6 +42,7 @@ Cada una sale de una fuente distinta:
 | 🎲 Biblioteca a fondo | `biblioteca` | Tus Me gusta + tus propias playlists |
 | 🔭 Bandas que sigo | `seguidos` | Artistas que seguís (todos, sin importar cuánto los escuchás) |
 | 🎧 En rotación | `escuchando` | Lo que venís escuchando último (historial reciente + tus tops) |
+| 🧭 Para descubrir | `descubrir` | Artistas afines a los que seguís (por colaboraciones `appears_on`) que aún no escuchás |
 
 ## Automatización semanal (Docker)
 
