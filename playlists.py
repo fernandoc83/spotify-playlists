@@ -16,7 +16,7 @@ import argparse
 import random
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from analyzer import get_client
 
@@ -25,6 +25,8 @@ TAMANO = 50            # temas por playlist
 MAX_POR_ARTISTA = 1    # variedad: cuántos temas como mucho por artista
 SEGUIDOS_MAX = 50      # cuántos artistas seguidos procesar (1 búsqueda c/u)
 SEGUIDOS_POR_ART = 2   # temas a tomar de cada seguido
+DESCUBRIR_SEEDS = 25   # semillas (seguidos) para el grafo de colaboraciones
+DESCUBRIR_ALBUMS = 10  # apariciones (appears_on) a mirar por semilla
 
 
 # --------------------------------------------------------------------------- #
@@ -203,10 +205,70 @@ def build_escuchando(sp):
             sel)
 
 
+def build_descubrir(sp):
+    """Artistas afines a los que seguís, que todavía NO seguís ni escuchás.
+
+    Sin IA: usa el grafo de colaboraciones. Para cada artista que seguís mira
+    sus apariciones (appears_on: compilados/colaboraciones) y junta a los otros
+    artistas de esos discos. Los que más se repiten — sacando a los que ya
+    seguís y a tus tops — son los más afines para descubrir.
+    """
+    print("  → leyendo artistas que seguís (semillas)…")
+    foll = followed_artists(sp)
+    seguidos_ids = {a["id"] for a in foll}
+    seguidos_names = {a["name"].lower() for a in foll}
+    print(f"    {len(foll)} seguidos")
+    print("  → leyendo tus tops (para excluir lo que ya escuchás)…")
+    top_ids = {a["id"] for tr in ("short_term", "medium_term", "long_term")
+               for a in sp.current_user_top_artists(limit=50, time_range=tr)["items"]}
+    ruido = {"various artists", "varios artistas", "various", "v.a."}
+
+    semillas = foll[:]
+    random.shuffle(semillas)
+    semillas = semillas[:DESCUBRIR_SEEDS]
+    print(f"  → recorriendo colaboraciones de {len(semillas)} semillas…")
+    counter = Counter()   # id de artista candidato -> cuántas veces co-aparece
+    nombres = {}          # id -> nombre
+    for i, a in enumerate(semillas, 1):
+        try:
+            albums = sp.artist_albums(
+                a["id"], include_groups="appears_on", limit=DESCUBRIR_ALBUMS
+            )["items"]
+        except Exception:
+            continue
+        for al in albums:
+            for ar in al["artists"]:
+                aid, nombre = ar.get("id"), ar["name"]
+                low = nombre.lower()
+                if not aid or aid in seguidos_ids or aid in top_ids:
+                    continue
+                if low in ruido or low in seguidos_names:
+                    continue
+                counter[aid] += 1
+                nombres.setdefault(aid, nombre)
+        time.sleep(0.25)
+        if i % 10 == 0:
+            print(f"    {i}/{len(semillas)}…")
+
+    ranked = [aid for aid, _ in counter.most_common(60)]
+    print(f"    {len(counter)} candidatos; busco temas de los {len(ranked)} más afines…")
+    tracks = []
+    for i, aid in enumerate(ranked, 1):
+        tracks += artist_some_tracks(sp, aid, nombres[aid], 1)
+        time.sleep(0.25)
+        if i % 15 == 0:
+            print(f"    {i}/{len(ranked)}…")
+    sel = diversificar(tracks, TAMANO, 1)
+    return ("🧭 Para descubrir",
+            "Artistas afines a los que seguís (por colaboraciones) que todavía no escuchás. Generada con Claude.",
+            sel)
+
+
 BUILDERS = {
     "biblioteca": build_biblioteca,
     "seguidos": build_seguidos,
     "escuchando": build_escuchando,
+    "descubrir": build_descubrir,
 }
 
 # Nombres de corridas anteriores que ya no se usan: el script los borra solo.
