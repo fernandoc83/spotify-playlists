@@ -25,8 +25,8 @@ TAMANO = 50            # temas por playlist
 MAX_POR_ARTISTA = 1    # variedad: cuántos temas como mucho por artista
 SEGUIDOS_MAX = 50      # cuántos artistas seguidos procesar (1 búsqueda c/u)
 SEGUIDOS_POR_ART = 2   # temas a tomar de cada seguido
-DESCUBRIR_SEEDS = 25   # semillas (seguidos) para el grafo de colaboraciones
-DESCUBRIR_ALBUMS = 10  # apariciones (appears_on) a mirar por semilla
+DESCUBRIR_SEEDS = 30   # semillas (tus tops) para el grafo de colaboraciones
+DESCUBRIR_ALBUMS = 10  # discos por semilla (10 = tope de la API en dev mode)
 
 
 # --------------------------------------------------------------------------- #
@@ -206,43 +206,46 @@ def build_escuchando(sp):
 
 
 def build_descubrir(sp):
-    """Artistas afines a los que seguís, que todavía NO seguís ni escuchás.
+    """Artistas afines a lo que ESCUCHÁS, que todavía no seguís ni escuchás.
 
-    Sin IA: usa el grafo de colaboraciones. Para cada artista que seguís mira
-    sus apariciones (appears_on: compilados/colaboraciones) y junta a los otros
-    artistas de esos discos. Los que más se repiten — sacando a los que ya
-    seguís y a tus tops — son los más afines para descubrir.
+    Sin IA: usa el grafo de colaboraciones. Siembra desde tus top artists (tu
+    gusto real, no tus 193 seguidos), mira con quién colaboran/co-aparecen
+    (appears_on + álbumes/singles con pocos artistas, para evitar compilados) y
+    se queda con los que se repiten ≥2 veces — los realmente cercanos, no el
+    featuring suelto. Excluye lo que ya seguís y ya escuchás.
     """
-    print("  → leyendo artistas que seguís (semillas)…")
-    foll = followed_artists(sp)
-    seguidos_ids = {a["id"] for a in foll}
-    seguidos_names = {a["name"].lower() for a in foll}
-    print(f"    {len(foll)} seguidos")
-    print("  → leyendo tus tops (para excluir lo que ya escuchás)…")
-    top_ids = {a["id"] for tr in ("short_term", "medium_term", "long_term")
-               for a in sp.current_user_top_artists(limit=50, time_range=tr)["items"]}
+    print("  → leyendo tus top artists (semillas = tu gusto real)…")
+    seeds, seed_ids = [], set()
+    for tr in ("short_term", "medium_term", "long_term"):
+        for a in sp.current_user_top_artists(limit=50, time_range=tr)["items"]:
+            if a["id"] not in seed_ids:
+                seed_ids.add(a["id"])
+                seeds.append(a)
+    print(f"    {len(seeds)} artistas semilla")
+    print("  → leyendo seguidos (para excluirlos)…")
+    seguidos_ids = {a["id"] for a in followed_artists(sp)}
     ruido = {"various artists", "varios artistas", "various", "v.a."}
 
-    semillas = foll[:]
-    random.shuffle(semillas)
-    semillas = semillas[:DESCUBRIR_SEEDS]
+    random.shuffle(seeds)
+    semillas = seeds[:DESCUBRIR_SEEDS]
     print(f"  → recorriendo colaboraciones de {len(semillas)} semillas…")
     counter = Counter()   # id de artista candidato -> cuántas veces co-aparece
     nombres = {}          # id -> nombre
     for i, a in enumerate(semillas, 1):
         try:
             albums = sp.artist_albums(
-                a["id"], include_groups="appears_on", limit=DESCUBRIR_ALBUMS
+                a["id"], include_groups="appears_on,album,single", limit=DESCUBRIR_ALBUMS
             )["items"]
         except Exception:
             continue
         for al in albums:
-            for ar in al["artists"]:
+            arts = al["artists"]
+            if len(arts) > 5:      # compilado/soundtrack: demasiada gente → ruido
+                continue
+            for ar in arts:
                 aid, nombre = ar.get("id"), ar["name"]
                 low = nombre.lower()
-                if not aid or aid in seguidos_ids or aid in top_ids:
-                    continue
-                if low in ruido or low in seguidos_names:
+                if not aid or aid in seed_ids or aid in seguidos_ids or low in ruido:
                     continue
                 counter[aid] += 1
                 nombres.setdefault(aid, nombre)
@@ -250,17 +253,20 @@ def build_descubrir(sp):
         if i % 10 == 0:
             print(f"    {i}/{len(semillas)}…")
 
-    ranked = [aid for aid, _ in counter.most_common(60)]
-    print(f"    {len(counter)} candidatos; busco temas de los {len(ranked)} más afines…")
+    # afinidad: los que co-aparecen ≥2 veces; si quedan muy pocos, se afloja.
+    afines = [aid for aid, n in counter.most_common(80) if n >= 2]
+    if len(afines) < 25:
+        afines = [aid for aid, _ in counter.most_common(60)]
+    print(f"    {len(counter)} candidatos; {len(afines)} afines (≥2 co-apariciones)…")
     tracks = []
-    for i, aid in enumerate(ranked, 1):
-        tracks += artist_some_tracks(sp, aid, nombres[aid], 1)
+    for i, aid in enumerate(afines, 1):
+        tracks += artist_some_tracks(sp, aid, nombres[aid], 2)
         time.sleep(0.25)
         if i % 15 == 0:
-            print(f"    {i}/{len(ranked)}…")
-    sel = diversificar(tracks, TAMANO, 1)
+            print(f"    {i}/{len(afines)}…")
+    sel = diversificar(tracks, TAMANO, 2)
     return ("🧭 Para descubrir",
-            "Artistas afines a los que seguís (por colaboraciones) que todavía no escuchás. Generada con Claude.",
+            "Artistas afines a lo que escuchás (por colaboraciones) que todavía no seguís. Generada con Claude.",
             sel)
 
 
