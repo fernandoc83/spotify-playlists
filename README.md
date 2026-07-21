@@ -28,14 +28,20 @@ Rango: `--range short | medium | long` (por defecto `medium`).
 ## Playlists con variedad
 
 ```bash
-.venv/bin/python playlists.py            # regenera las 3 (biblioteca, seguidos, joyas)
-.venv/bin/python playlists.py biblioteca # solo una
-.venv/bin/python playlists.py --dry-run  # muestra qué armaría, sin tocar Spotify
+.venv/bin/python playlists.py             # regenera las 3
+.venv/bin/python playlists.py biblioteca  # solo una (biblioteca | seguidos | escuchando)
+.venv/bin/python playlists.py --dry-run   # muestra qué armaría, sin tocar Spotify
 ```
 
-Cada corrida **reutiliza las mismas 3 playlists** (URLs fijas): les borra el
-contenido viejo y mete música nueva barajada desde tu propia huella (guardados,
-tus playlists, artistas que seguís). No usa el algoritmo de Spotify.
+Cada corrida **reutiliza las mismas 3 playlists**: les borra el contenido viejo y
+mete música nueva barajada desde tu propia huella. No usa el algoritmo de Spotify.
+Cada una sale de una fuente distinta:
+
+| Lista | `key` | Fuente |
+|---|---|---|
+| 🎲 Biblioteca a fondo | `biblioteca` | Tus Me gusta + tus propias playlists |
+| 🔭 Bandas que sigo | `seguidos` | Artistas que seguís (todos, sin importar cuánto los escuchás) |
+| 🎧 En rotación | `escuchando` | Lo que venís escuchando último (historial reciente + tus tops) |
 
 ## Automatización semanal (Docker)
 

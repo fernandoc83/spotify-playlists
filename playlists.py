@@ -105,20 +105,6 @@ def followed_artists(sp):
     return out
 
 
-def recent_rotation_ids(sp):
-    """IDs de lo que ya está sonando seguido (historial + tops recientes)."""
-    ids = set()
-    for it in sp.current_user_recently_played(limit=50)["items"]:
-        tm = _track_min(it.get("track"))
-        if tm:
-            ids.add(tm["id"])
-    for tr in ("short_term", "medium_term"):
-        for t in sp.current_user_top_tracks(limit=50, time_range=tr)["items"]:
-            if t.get("id"):
-                ids.add(t["id"])
-    return ids
-
-
 def artist_some_tracks(sp, artist_id, artist_name, n=2):
     """Devuelve hasta n temas de un artista vía búsqueda (1 sola llamada, liviano)."""
     try:
@@ -158,6 +144,7 @@ def diversificar(tracks, size, max_por_artista):
 # Constructores de cada playlist
 # --------------------------------------------------------------------------- #
 def build_biblioteca(sp):
+    """Solo lo tuyo: temas en Me gusta + los de tus propias playlists."""
     print("  → leyendo temas guardados…")
     pool = saved_tracks(sp)
     print(f"    {len(pool)} guardados")
@@ -166,35 +153,18 @@ def build_biblioteca(sp):
     print(f"    {len(pl)} de playlists")
     sel = diversificar(pool + pl, TAMANO, MAX_POR_ARTISTA)
     return ("🎲 Biblioteca a fondo",
-            "Todo lo tuyo, máximo 1 tema por artista y barajado. Generada con Claude.",
-            sel)
-
-
-def build_joyas(sp):
-    print("  → calculando tu rotación reciente…")
-    recientes = recent_rotation_ids(sp)
-    print(f"    {len(recientes)} temas en rotación (se excluyen)")
-    print("  → leyendo guardados + playlists…")
-    pool = saved_tracks(sp) + my_playlist_tracks(sp)
-    olvidados = [t for t in pool if t["id"] not in recientes]
-    print(f"    {len(olvidados)} candidatos olvidados")
-    sel = diversificar(olvidados, TAMANO, max(2, MAX_POR_ARTISTA))
-    return ("💎 Joyas perdidas",
-            "Temas tuyos que no aparecen en tu historial reciente. Generada con Claude.",
+            "Tus Me gusta + tus playlists, 1 tema por artista y barajado. Generada con Claude.",
             sel)
 
 
 def build_seguidos(sp):
+    """Bandas que seguís, sin importar cuánto las escuchás (ni si lo hacés)."""
     print("  → leyendo artistas que seguís…")
     foll = followed_artists(sp)
     print(f"    seguís {len(foll)} artistas")
-    # priorizar los que NO están entre tus tops (los menos escuchados)
-    top_ids = {a["id"] for tr in ("short_term", "medium_term", "long_term")
-               for a in sp.current_user_top_artists(limit=50, time_range=tr)["items"]}
-    candidatos = [a for a in foll if a["id"] not in top_ids] or foll
-    random.shuffle(candidatos)
-    candidatos = candidatos[:SEGUIDOS_MAX]
-    print(f"  → buscando temas de {len(candidatos)} seguidos poco escuchados…")
+    random.shuffle(foll)
+    candidatos = foll[:SEGUIDOS_MAX]
+    print(f"  → buscando temas de {len(candidatos)} bandas que seguís…")
     tracks = []
     for i, a in enumerate(candidatos, 1):
         tracks += artist_some_tracks(sp, a["id"], a["name"], SEGUIDOS_POR_ART)
@@ -202,16 +172,45 @@ def build_seguidos(sp):
         if i % 15 == 0:
             print(f"    {i}/{len(candidatos)}…")
     sel = diversificar(tracks, TAMANO, SEGUIDOS_POR_ART)
-    return ("🔭 Seguidos al rescate",
-            "Artistas que seguís pero el algoritmo te esconde. Generada con Claude.",
+    return ("🔭 Bandas que sigo",
+            "Temas de los artistas que seguís, sin importar cuánto los escuchás. Generada con Claude.",
+            sel)
+
+
+def build_escuchando(sp):
+    """Lo que venís escuchando último: recientes + tus tops de las últimas semanas/meses."""
+    print("  → leyendo lo que venís escuchando…")
+    tracks = []
+    try:
+        for it in sp.current_user_recently_played(limit=50)["items"]:
+            tm = _track_min(it.get("track"))
+            if tm:
+                tracks.append(tm)
+        print(f"    {len(tracks)} temas en tu historial reciente")
+    except Exception:
+        # el token cacheado puede no tener el scope 'user-read-recently-played';
+        # no pasa nada, nos apoyamos en los tops (re-logueá en local para sumarlo).
+        print("    (historial reciente no disponible con este token, uso solo tops)")
+    for tr in ("short_term", "medium_term"):
+        for t in sp.current_user_top_tracks(limit=50, time_range=tr)["items"]:
+            tm = _track_min(t)
+            if tm:
+                tracks.append(tm)
+    print(f"    {len(tracks)} temas sumando tus tops")
+    sel = diversificar(tracks, TAMANO, max(2, MAX_POR_ARTISTA))
+    return ("🎧 En rotación",
+            "Lo que venís escuchando último (historial reciente + tus tops). Generada con Claude.",
             sel)
 
 
 BUILDERS = {
     "biblioteca": build_biblioteca,
     "seguidos": build_seguidos,
-    "joyas": build_joyas,
+    "escuchando": build_escuchando,
 }
+
+# Nombres de corridas anteriores que ya no se usan: el script los borra solo.
+RETIRADAS = ["💎 Joyas perdidas", "🔭 Seguidos al rescate"]
 
 
 # --------------------------------------------------------------------------- #
@@ -230,6 +229,17 @@ def _mis_playlists(sp):
             break
         off += 50
     return out
+
+
+def limpiar_retiradas(sp):
+    """Borra playlists tuyas de conceptos viejos (ver RETIRADAS)."""
+    for pl in _mis_playlists(sp):
+        if pl["name"] in RETIRADAS:
+            try:
+                sp.current_user_unfollow_playlist(pl["id"])
+                print(f"  🗑  borrada lista retirada: {pl['name']}")
+            except Exception:
+                pass
 
 
 def crear_o_actualizar(sp, nombre, desc, tracks):
@@ -279,6 +289,9 @@ def main() -> int:
     sp = get_client()
     me = sp.current_user()
     print(f"Conectado como: {me['display_name']} ({me['id']})\n")
+
+    if not args.dry_run:
+        limpiar_retiradas(sp)
 
     for key in which:
         print(f"== {key} ==")
